@@ -5,17 +5,17 @@ from slicer.ScriptedLoadableModule import *
 import logging
 
 #
-# ImageFusion
+# imageFusion
 #
 
-class ImageFusion(ScriptedLoadableModule):
+class imageFusion(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "ImageFusion" # TODO make this more human readable by adding spaces
+    self.parent.title = "imageFusion" # TODO make this more human readable by adding spaces
     self.parent.categories = ["Examples"]
     self.parent.dependencies = []
     self.parent.contributors = ["John Doe (AnyWare Corp.)"] # replace with "Firstname Lastname (Organization)"
@@ -29,10 +29,10 @@ class ImageFusion(ScriptedLoadableModule):
 """ # replace with organization, grant and thanks.
 
 #
-# ImageFusionWidget
+# imageFusionWidget
 #
 
-class ImageFusionWidget(ScriptedLoadableModuleWidget):
+class imageFusionWidget(ScriptedLoadableModuleWidget):
   """Uses ScriptedLoadableModuleWidget base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
@@ -127,16 +127,16 @@ class ImageFusionWidget(ScriptedLoadableModuleWidget):
     self.applyButton.enabled = self.inputSelector.currentNode() and self.outputSelector.currentNode()
 
   def onApplyButton(self):
-    logic = ImageFusionLogic()
+    logic = imageFusionLogic()
     enableScreenshotsFlag = self.enableScreenshotsFlagCheckBox.checked
     imageThreshold = self.imageThresholdSliderWidget.value
     logic.run(self.inputSelector.currentNode(), self.outputSelector.currentNode(), imageThreshold, enableScreenshotsFlag)
 
 #
-# ImageFusionLogic
+# imageFusionLogic
 #
 
-class ImageFusionLogic(ScriptedLoadableModuleLogic):
+class imageFusionLogic(ScriptedLoadableModuleLogic):
   """This class should implement all the actual
   computation done by your module.  The interface
   should be such that other python code can import
@@ -227,14 +227,14 @@ class ImageFusionLogic(ScriptedLoadableModuleLogic):
 
     # Capture screenshot
     if enableScreenshots:
-      self.takeScreenshot('ImageFusionTest-Start','MyScreenshot',-1)
+      self.takeScreenshot('imageFusionTest-Start','MyScreenshot',-1)
 
     logging.info('Processing completed')
 
     return True
 
 
-class ImageFusionTest(ScriptedLoadableModuleTest):
+class imageFusionTest(ScriptedLoadableModuleTest):
   """
   This is the test case for your scripted module.
   Uses ScriptedLoadableModuleTest base class, available at:
@@ -250,9 +250,9 @@ class ImageFusionTest(ScriptedLoadableModuleTest):
     """Run as few or as many tests as needed here.
     """
     self.setUp()
-    self.test_ImageFusion1()
+    self.test_imageFusion1()
 
-  def test_ImageFusion1(self):
+  def test_imageFusion1(self):
     """ Ideally you should have several levels of tests.  At the lowest level
     tests should exercise the functionality of the logic with different inputs
     (both valid and invalid).  At higher levels your tests should emulate the
@@ -284,6 +284,6 @@ class ImageFusionTest(ScriptedLoadableModuleTest):
     self.delayDisplay('Finished with download and loading')
 
     volumeNode = slicer.util.getNode(pattern="FA")
-    logic = ImageFusionLogic()
+    logic = imageFusionLogic()
     self.assertTrue( logic.hasImageData(volumeNode) )
     self.delayDisplay('Test passed!')
