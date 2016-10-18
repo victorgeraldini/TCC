@@ -111,27 +111,52 @@ class imageFusionWidget(ScriptedLoadableModuleWidget):
     pipelineChoresLayout = qt.QFormLayout(pipelineChoresButton)
 
     #Add button to add CT image
-    addCTButton = ctk.ctkCollapsibleButton()
-    addCTButton.text = "Add CT Image"
-    pipelineChoresLayout.addWidget(addCTButton)
-    CTButtonLayout = qt.QFormLayout(addCTButton)
-    CTButtonLayout.addRow("Click in 'Data' (upper-left side) button to load CT image and, then, mark three fiducials\n(upper-mid-left side) on it", self.layout.addStretch(0))
+    # addCTButton = ctk.ctkCollapsibleButton()
+    # addCTButton.text = "Add CT Image"
+    # pipelineChoresLayout.addWidget(addCTButton)
+    # CTButtonLayout = qt.QFormLayout(addCTButton)
+    # CTButtonLayout.addRow("Click in 'Data' (upper-left side) button to load CT image and, then, mark three fiducials\n(upper-mid-left side) on it", self.layout.addStretch(0))
     # addCTButton = qt.QPushButton("Add CT Image")
     # addCTButton.checkable = True
     # pipelineChoresLayout.addWidget(addCTButton)
     # CTLayout = qt.QFormLayout(addCTButton)
     # CTLayout.addRow("Click in 'Data' (upper-left side) button to load CT image and, then, mark three fiducials (upper-mid-left side) on it", self.layout.addStretch(0))
-
+	
+	#Button to select CT image
+    self.CtSelector = slicer.qMRMLNodeComboBox()
+    self.CtSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.CtSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
+    self.CtSelector.selectNodeUponCreation = True
+    self.CtSelector.addEnabled = True
+    self.CtSelector.removeEnabled = True
+    self.CtSelector.noneEnabled = False
+    self.CtSelector.showHidden = False
+    self.CtSelector.showChildNodeTypes = False
+    self.CtSelector.setMRMLScene( slicer.mrmlScene )
+    pipelineChoresLayout.addRow("Select CT image to be used: ", self.CtSelector)
 
     #Add button to add MRI image
-    addMRIButton = ctk.ctkCollapsibleButton()
-    addMRIButton.text = "Add MRI Image"
-    pipelineChoresLayout.addWidget(addMRIButton)
-    MRIButtonLayout = qt.QFormLayout(addMRIButton)
-    MRIButtonLayout.addRow("Click in 'Data' (upper-left side) button to load MRI image and, then, mark three fiducials\n(upper-mid-left side) on it", self.layout.addStretch(0))
+    # addMRIButton = ctk.ctkCollapsibleButton()
+    # addMRIButton.text = "Add MRI Image"
+    # pipelineChoresLayout.addWidget(addMRIButton)
+    # MRIButtonLayout = qt.QFormLayout(addMRIButton)
+    # MRIButtonLayout.addRow("Click in 'Data' (upper-left side) button to load MRI image and, then, mark three fiducials\n(upper-mid-left side) on it", self.layout.addStretch(0))
     # addMRIButton = qt.QPushButton("Add MRI Image")
     # addMRIButton.toolTip = "Select MRI image to be used."
     # pipelineChoresLayout.addWidget(addMRIButton)
+	
+	#Button to select MR image
+    self.MriSelector = slicer.qMRMLNodeComboBox()
+    self.MriSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.MriSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
+    self.MriSelector.selectNodeUponCreation = True
+    self.MriSelector.addEnabled = True
+    self.MriSelector.removeEnabled = True
+    self.MriSelector.noneEnabled = False
+    self.MriSelector.showHidden = False
+    self.MriSelector.showChildNodeTypes = False
+    self.MriSelector.setMRMLScene( slicer.mrmlScene )
+    pipelineChoresLayout.addRow("Select MR image to be used: ", self.MriSelector)
 
     #Button to calculate the transformation matrix of both images
     calculateTransformationMatrixButton = qt.QPushButton("Calculate Transformation Matrix")
@@ -160,7 +185,12 @@ class imageFusionWidget(ScriptedLoadableModuleWidget):
 
 
     #Choose values of adjustments
-
+    sliderLR = ctk.ctkSliderWidget()
+    sliderPA = ctk.ctkSliderWidget()
+    sliderIS = ctk.ctkSliderWidget()
+    pipelineChoresLayout.addRow("LR", sliderLR)
+    pipelineChoresLayout.addRow("PA", sliderPA)
+    pipelineChoresLayout.addRow("IS", sliderIS)
 
     #Button to make better adjustments
     betterAdjustmentsButton = qt.QPushButton("Make better adjustments")
@@ -171,6 +201,118 @@ class imageFusionWidget(ScriptedLoadableModuleWidget):
     segmentSubduralElectrodes = qt.QPushButton("Segment subdural electrodes")
     segmentSubduralElectrodes.toolTip = ""
     pipelineChoresLayout.addWidget(segmentSubduralElectrodes)
+	
+	#Connections
+    calculateTransformationMatrixButton.connect('clicked(bool)', self.calculateTransformationMatrix)
+    adjustCTtoMRIButton.connect('clicked(bool)', self.adjustCTtoMRI)
+    betterAdjustmentsButton.connect('clicked(bool)', self.betterAdjustment)
+    segmentSubduralElectrodes.connect('clicked(bool)', self.segment)
+	
+	
+  def calculateTransformationMatrix(self):
+    logic = imageFusionLogic()
+    print("Calculate Transformation Matrix")
+    logic.doTransformationMatrix()
+
+  def adjustCTtoMRI(self):
+    logic = imageFusionLogic()
+    print("Adjust CT to MRI")
+    logic.doAdjustment()
+
+  def betterAdjustment(self):
+    logic = imageFusionLogic()
+    print("Doing better adjustment")
+    logic.doBetterAdjustment()
+
+  def segment(self):
+    logic = imageFusionLogic()
+    print("Segmenting")
+    logic.doSegment()
+
+	
+
+class imageFusionLogic:
+  import slicer
+  import math
+  def __init__(self):
+    pass
+  
+  def doTransformationMatrix(self):
+    markups = slicer.modules.markups.logic()
+    fidID = markups.GetActiveListID()
+    fidNode = slicer.mrmlScene.GetNodeByID(fidID)
+	
+    print(fidID)
+	
+    node1 = slicer.vtkMRMLMarkupsFiducialNode()
+    node2 = slicer.vtkMRMLMarkupsFiducialNode()
+    slicer.mrmlScene.AddNode(node1)
+    slicer.mrmlScene.AddNode(node2)
+	
+    fiducial1 = [0,0,0]
+    fiducial2 = [0,0,0]
+    fiducial3 = [0,0,0]
+    fiducial4 = [0,0,0]
+    fiducial5 = [0,0,0]
+    fiducial6 = [0,0,0]
+    fidNode.GetNthFiducialPosition(0, fiducial1)
+    fidNode.GetNthFiducialPosition(1, fiducial2)
+    fidNode.GetNthFiducialPosition(2, fiducial3)
+    fidNode.GetNthFiducialPosition(3, fiducial4)
+    fidNode.GetNthFiducialPosition(4, fiducial5)
+    fidNode.GetNthFiducialPosition(5, fiducial6)
+	
+    node1.AddFiducialFromArray(fiducial1)
+    node1.AddFiducialFromArray(fiducial2)
+    node1.AddFiducialFromArray(fiducial3)
+    node2.AddFiducialFromArray(fiducial4)
+    node2.AddFiducialFromArray(fiducial5)
+    node2.AddFiducialFromArray(fiducial6)
+	
+    print("PRIMEIRO NODO")
+    print(node1)
+    print("SEGUNDO NODO")
+    print(node2)
+	
+	
+    print("Doing transformation matrix")
+	
+	
+	#Create transform node
+    transformSave = slicer.vtkMRMLTransformNode()
+	#Add node to scene
+    slicer.mrmlScene.AddNode(transformSave)
+	
+	
+	
+	
+    parameters = {}
+    parameters["fixedLandmarks"] = node1.GetID()
+    parameters["movingLandmarks"] = node2.GetID()
+    parameters["saveTransform"] = transformSave.GetID()
+    #parameters["transformType"] = "Translation"
+    fiducialRegistration = slicer.modules.fiducialregistration
+    slicer.cli.run(fiducialRegistration, None, parameters)
+
+	
+    print(transformSave)
+	
+	
+
+  def doAdjustment(self):
+    print("Adjusting CT to MRI!")
+	
+  def doBetterAdjustment(self):
+    print("Doing better adjustments")
+	
+  def doSegment(self):
+    print("Segmenting subdural electrodes")
+	
+	
+	
+	
+	
+	
 
     #Modulos do slicer que devo usar:
     #1 Fiducial Registration (fazer transformada), https://www.slicer.org/slicerWiki/index.php/Documentation/Nightly/Modules/FiducialRegistration
