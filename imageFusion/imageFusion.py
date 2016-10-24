@@ -1,6 +1,6 @@
 import os
 import unittest
-import vtk, qt, ctk, slicer
+import vtk, qt, ctk, slicer, numpy
 from slicer.ScriptedLoadableModule import *
 import logging
 
@@ -75,16 +75,16 @@ class imageFusionWidget(ScriptedLoadableModuleWidget):
     self.element9 = qt.QCheckBox()
     self.element10 = qt.QCheckBox()
 
-    self.element1.checkable = False
-    self.element2.checkable = False
-    self.element3.checkable = False 
-    self.element4.checkable = False
-    self.element5.checkable = False
-    self.element6.checkable = False
-    self.element7.checkable = False
-    self.element8.checkable = False
-    self.element9.checkable = False
-    self.element10.checkable = False
+    self.element1.setEnabled(0)
+    self.element2.setEnabled(0)
+    self.element3.setEnabled(0)
+    self.element4.setEnabled(0)
+    self.element5.setEnabled(0)
+    self.element6.setEnabled(0)
+    self.element7.setEnabled(0)
+    self.element8.setEnabled(0)
+    self.element9.setEnabled(0)
+    self.element10.setEnabled(0)
 
     pipelineListFormLayout.addRow("Lista das tarefas a serem cumpridas:", self.layout.addStretch(0))
     pipelineListFormLayout.addRow("1. Load CT image ", self.element1)
@@ -158,10 +158,25 @@ class imageFusionWidget(ScriptedLoadableModuleWidget):
     self.MriSelector.setMRMLScene( slicer.mrmlScene )
     pipelineChoresLayout.addRow("Select MR image to be used: ", self.MriSelector)
 
+	#Transformation matrix type button
+    self.selectMatrixText = qt.QLabel("Select the transform type: ") 
+    pipelineChoresLayout.addRow(self.selectMatrixText)
+	
+	#Buttons
+    self.typeTranslation = qt.QRadioButton()
+    self.typeRigid = qt.QRadioButton()
+	
+    pipelineChoresLayout.addRow("Rigid", self.typeRigid)
+    pipelineChoresLayout.addRow("Translation", self.typeTranslation)
+	
+    self.typeRigid.setChecked(1)
+	
+	
     #Button to calculate the transformation matrix of both images
-    calculateTransformationMatrixButton = qt.QPushButton("Calculate Transformation Matrix")
-    calculateTransformationMatrixButton.toolTip = "Calculate transformation matrix of both CT and MRI images. Only possible if fiducials are marked in both images."
-    pipelineChoresLayout.addWidget(calculateTransformationMatrixButton)
+    self.calculateTransformationMatrixButton = qt.QPushButton("Calculate Transformation Matrix")
+    self.calculateTransformationMatrixButton.toolTip = "Calculate transformation matrix of both CT and MRI images. Only possible if fiducials are marked in both images."
+    pipelineChoresLayout.addWidget(self.calculateTransformationMatrixButton)
+    self.calculateTransformationMatrixButton.enabled = False
     #Show values of transformation
     self.hadSuccessOnTransform = qt.QLabel("Had Success on transform?")
     self.rmsValue = qt.QLabel("RMS Value:")
@@ -172,9 +187,9 @@ class imageFusionWidget(ScriptedLoadableModuleWidget):
     #pipelineChoresLayout.addRow(self.hadSuccessOnTransform)
 
     #Button to adjust CT to MRI
-    adjustCTtoMRIButton = qt.QPushButton("Adjust CT to MRI")
-    adjustCTtoMRIButton.toolTip = "Transform the CT and Adjust it to MRI"
-    pipelineChoresLayout.addWidget(adjustCTtoMRIButton)
+    self.adjustCTtoMRIButton = qt.QPushButton("Adjust CT to MRI")
+    self.adjustCTtoMRIButton.toolTip = "Transform the CT and Adjust it to MRI"
+    pipelineChoresLayout.addWidget(self.adjustCTtoMRIButton)
 
     #Instructions to merge images in a same view.
     mergeImagesButton = ctk.ctkCollapsibleButton()
@@ -185,12 +200,19 @@ class imageFusionWidget(ScriptedLoadableModuleWidget):
 
 
     #Choose values of adjustments
-    sliderLR = ctk.ctkSliderWidget()
-    sliderPA = ctk.ctkSliderWidget()
-    sliderIS = ctk.ctkSliderWidget()
-    pipelineChoresLayout.addRow("LR", sliderLR)
-    pipelineChoresLayout.addRow("PA", sliderPA)
-    pipelineChoresLayout.addRow("IS", sliderIS)
+    self.sliderLR = ctk.ctkSliderWidget()
+    self.sliderLR.minimum = -200
+    self.sliderLR.maximum = 200
+    self.sliderPA = ctk.ctkSliderWidget()
+    self.sliderPA.minimum = -200
+    self.sliderPA.maximum = 200
+    self.sliderIS = ctk.ctkSliderWidget()
+    self.sliderIS.minimum = -200
+    self.sliderIS.maximum = 200
+
+    pipelineChoresLayout.addRow("LR", self.sliderLR)
+    pipelineChoresLayout.addRow("PA", self.sliderPA)
+    pipelineChoresLayout.addRow("IS", self.sliderIS)
 
     #Button to make better adjustments
     betterAdjustmentsButton = qt.QPushButton("Make better adjustments")
@@ -203,26 +225,58 @@ class imageFusionWidget(ScriptedLoadableModuleWidget):
     pipelineChoresLayout.addWidget(segmentSubduralElectrodes)
 	
 	#Connections
-    calculateTransformationMatrixButton.connect('clicked(bool)', self.calculateTransformationMatrix)
-    adjustCTtoMRIButton.connect('clicked(bool)', self.adjustCTtoMRI)
+    self.CtSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelectCT)
+    self.MriSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelectMRI)
+    self.calculateTransformationMatrixButton.connect('clicked(bool)', self.calculateTransformationMatrix)
+    self.adjustCTtoMRIButton.connect('clicked(bool)', self.adjustCTtoMRI)
     betterAdjustmentsButton.connect('clicked(bool)', self.betterAdjustment)
     segmentSubduralElectrodes.connect('clicked(bool)', self.segment)
 	
 	
+  def onSelectCT(self):	
+    if self.CtSelector.currentNode():
+      self.element1.setChecked(1)
+      if self.element3.checked:
+	    self.calculateTransformationMatrixButton.enabled = True
+    else:
+	  self.element1.setChecked(0)
+	  self.calculateTransformationMatrixButton.enabled = False
+	  
+  def onSelectMRI(self):	
+    if self.MriSelector.currentNode():
+      self.element3.setChecked(1)
+      if self.element1.checked:
+	    self.calculateTransformationMatrixButton.enabled = True
+    else:
+	  self.element3.setChecked(0)
+	  self.calculateTransformationMatrixButton.enabled = False
+
   def calculateTransformationMatrix(self):
     logic = imageFusionLogic()
+    type = None
+    isRigid = self.typeRigid.checked
+
+    if isRigid:
+	  type = "Rigid"
+    else:
+      type = "Translation"	
+	
     print("Calculate Transformation Matrix")
-    logic.doTransformationMatrix()
+    logic.doTransformationMatrix(type, self.element5)
+	
+    if self.element5.enabled:
+      self.adjustCTtoMRIButton.enabled = True
+      
 
   def adjustCTtoMRI(self):
     logic = imageFusionLogic()
     print("Adjust CT to MRI")
-    logic.doAdjustment()
+    logic.doAdjustment(self.CtSelector.currentNode())
 
   def betterAdjustment(self):
     logic = imageFusionLogic()
     print("Doing better adjustment")
-    logic.doBetterAdjustment()
+    logic.doBetterAdjustment(self.sliderLR.value, self.sliderPA.value, self.sliderIS.value)
 
   def segment(self):
     logic = imageFusionLogic()
@@ -236,8 +290,11 @@ class imageFusionLogic:
   import math
   def __init__(self):
     pass
+	
+  #Vai guardar a matriz de transformacao
+  transformSave = slicer.vtkMRMLTransformNode()
   
-  def doTransformationMatrix(self):
+  def doTransformationMatrix(self, type, element, transform = transformSave):
     markups = slicer.modules.markups.logic()
     fidID = markups.GetActiveListID()
     fidNode = slicer.mrmlScene.GetNodeByID(fidID)
@@ -279,31 +336,86 @@ class imageFusionLogic:
 	
 	
 	#Create transform node
-    transformSave = slicer.vtkMRMLTransformNode()
+    #transformSave = slicer.vtkMRMLTransformNode()
 	#Add node to scene
-    slicer.mrmlScene.AddNode(transformSave)
+    slicer.mrmlScene.AddNode(transform)
 	
 	
 	
 	
     parameters = {}
-    parameters["fixedLandmarks"] = node1.GetID()
-    parameters["movingLandmarks"] = node2.GetID()
-    parameters["saveTransform"] = transformSave.GetID()
-    #parameters["transformType"] = "Translation"
+    parameters["fixedLandmarks"] = node2.GetID()
+    parameters["movingLandmarks"] = node1.GetID()
+    parameters["saveTransform"] = transform.GetID()
+    parameters["transformType"] = type
     fiducialRegistration = slicer.modules.fiducialregistration
     slicer.cli.run(fiducialRegistration, None, parameters)
 
 	
-    print(transformSave)
+    print(transform)
+    print("TIPO DA TRANSFORMADA:")
+    print(type)
 	
+    element.setChecked(1)
+	
+    # slicer.mrmlScene.AddNode(transform)
+    # matrix = vtk.vtkMatrix4x4()
+    # auxMatrix = []
+    # transform.GetMatrixTransformFromParent(matrix)
+    # rms = 0
+    # for x in range(0,4):
+      # for y in range(0,4):
+        # auxMatrix.append(matrix.GetElement(x,y))
+        # print(matrix.GetElement(x,y))
+	
+    # rms = numpy.sqrt(numpy.mean(numpy.square(auxMatrix)))
+    # print("RMS")
+    # print(rms)
+    # print(auxMatrix)
+    # print(matrix)
 	
 
-  def doAdjustment(self):
+  def doAdjustment(self, ctImage, transform = transformSave):
     print("Adjusting CT to MRI!")
+    
+    ctImage.SetAndObserveTransformNodeID(transform.GetID())
+    slicer.app.processEvents()
 	
-  def doBetterAdjustment(self):
+	
+  def doBetterAdjustment(self, sliderLR, sliderPA, sliderIS, transform = transformSave):
     print("Doing better adjustments")
+	
+	
+    slicer.mrmlScene.AddNode(transform)
+	
+    print("Valores dos sliders:")
+    print(sliderLR)
+    print(sliderPA)
+    print(sliderIS)
+    matrix = vtk.vtkMatrix4x4()
+    transform.GetMatrixTransformFromParent(matrix)
+    print("Matriz antes")
+    print(matrix)
+    
+    matrix.SetElement(0,3, sliderLR)
+    matrix.SetElement(1,3, sliderPA)
+    matrix.SetElement(2,3, sliderIS)
+    transform.SetMatrixTransformToParent(matrix)
+	
+    print("Matriz depois")
+    print(matrix)
+
+    slicer.app.processEvents()
+	
+
+    # slicer.mrmlScene.AddNode(transform)
+	
+    # transformable = slicer.modules.transforms
+    # parameters = {}
+    # parameters["Active Transform"] = transform.GetID()
+    # parameters["Translation"] = [10, 20, 30]
+	
+    # slicer.cli.run(transformable, None, parameters)
 	
   def doSegment(self):
     print("Segmenting subdural electrodes")
